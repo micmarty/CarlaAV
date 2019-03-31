@@ -91,14 +91,14 @@ class LocalPlanner(object):
         :return:
         """
         # default params
-        self._dt = 1.0 / 30.0
-        self._target_speed = 20.0  # Km/h
+        self._dt = 1.0 / 5.0
+        self._target_speed = 35.0  # Km/h
         self._sampling_radius = self._target_speed * 0.5 / 3.6  # 0.5 seconds horizon
         self._min_distance = self._sampling_radius * self.MIN_DISTANCE_PERCENTAGE
         args_lateral_dict = {
-            'K_P': 1.0,
-            'K_D': 0.005,
-            'K_I': 1.4,
+            'K_P': .5,
+            'K_D': 0.01,
+            'K_I': 0.4,
             'dt': self._dt}
         args_longitudinal_dict = {
             'K_P': 1.0,
@@ -205,14 +205,18 @@ class LocalPlanner(object):
             return control
 
         #   Buffering the waypoints
-        if not self._waypoint_buffer:
-            for i in range(self._buffer_size):
-                if self._waypoints_queue:
-                    self._waypoint_buffer.append(
-                        self._waypoints_queue.popleft())
-                else:
-                    break
-
+        # if not self._waypoint_buffer:
+        #     for i in range(self._buffer_size):
+        #         if self._waypoints_queue:
+        #             self._waypoint_buffer.append(
+        #                 self._waypoints_queue.popleft())
+        #         else:
+        #             break
+        while len(self._waypoint_buffer) < self._buffer_size:
+            if self._waypoints_queue:
+                self._waypoint_buffer.append(self._waypoints_queue.popleft())
+            else:
+                break
         # current vehicle waypoint
         self._current_waypoint = self._map.get_waypoint(self._vehicle.get_location())
         # target waypoint
@@ -221,7 +225,7 @@ class LocalPlanner(object):
         for waypoint, road_option in self._waypoint_buffer:
             cx.append(waypoint.transform.location.x)
             cy.append(waypoint.transform.location.y)
-        L = 1.0 # 2.9m
+        L = 2.9
         fx = self._vehicle.get_transform().location.x + L * np.cos(self._vehicle.get_transform().rotation.yaw)
         fy = self._vehicle.get_transform().location.y + L * np.sin(self._vehicle.get_transform().rotation.yaw)
 

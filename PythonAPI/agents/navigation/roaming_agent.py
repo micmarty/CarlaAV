@@ -30,7 +30,7 @@ class RoamingAgent(Agent):
         :param vehicle: actor to apply to local planner logic onto
         """
         super(RoamingAgent, self).__init__(vehicle)
-        self._proximity_threshold = 10.0  # meters
+        self._proximity_threshold = 20.0  # meters
         self._state = AgentState.NAVIGATING
         self._local_planner = LocalPlanner(self._vehicle)
 
@@ -49,23 +49,23 @@ class RoamingAgent(Agent):
         vehicle_list = actor_list.filter("*vehicle*")
         lights_list = actor_list.filter("*traffic_light*")
 
-        # check possible obstacles
-        vehicle_state, vehicle = self._is_vehicle_hazard(vehicle_list)
-        if vehicle_state:
-            if debug:
-                print('!!! VEHICLE BLOCKING AHEAD [{}])'.format(vehicle.id))
+        # # check possible obstacles
+        # vehicle_state, vehicle = self._is_vehicle_hazard(vehicle_list)
+        # if vehicle_state:
+        #     if debug:
+        #         print('!!! VEHICLE BLOCKING AHEAD [{}])'.format(vehicle.id))
 
-            self._state = AgentState.BLOCKED_BY_VEHICLE
-            hazard_detected = True
+        #     self._state = AgentState.BLOCKED_BY_VEHICLE
+        #     hazard_detected = True
 
-        # check for the state of the traffic lights
+        # # check for the state of the traffic lights
         light_state, traffic_light = self._is_light_red(lights_list)
         if light_state:
             if debug:
                 print('=== RED LIGHT AHEAD [{}])'.format(traffic_light.id))
-
             self._state = AgentState.BLOCKED_RED_LIGHT
-            hazard_detected = True
+            # Don't stop on traffic lights
+            # hazard_detected = True
 
         if hazard_detected:
             control = self.emergency_stop()
@@ -73,5 +73,4 @@ class RoamingAgent(Agent):
             self._state = AgentState.NAVIGATING
             # standard local planner behavior
             control = self._local_planner.run_step()
-
         return control

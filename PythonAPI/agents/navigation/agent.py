@@ -96,8 +96,11 @@ class Agent(object):
             if is_within_distance_ahead(loc, ego_vehicle_location,
                                         self._vehicle.get_transform().rotation.yaw,
                                         self._proximity_threshold):
+                print('[TRAFFIC LIGHT] Status: {}'.format(traffic_light.state))
                 if traffic_light.state == carla.libcarla.TrafficLightState.Red:
                     return (True, traffic_light)
+            else:
+                print('[TRAFFIC LIGHT] No traffic light within {}m'.format(self._proximity_threshold))
 
         return (False, None)
 
@@ -144,6 +147,7 @@ class Agent(object):
 
                     if self._last_traffic_light.state == carla.libcarla.TrafficLightState.Red:
                         return (True, self._last_traffic_light)
+                    print(traffic_light.state)
                 else:
                     self._last_traffic_light = None
 
