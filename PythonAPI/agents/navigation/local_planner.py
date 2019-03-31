@@ -233,7 +233,6 @@ class LocalPlanner(object):
         dx = [fx - icx for icx in cx]
         dy = [fy - icy for icy in cy]
         d = [np.sqrt(idx ** 2 + idy ** 2) for (idx, idy) in zip(dx, dy)]
-        print(d)
         closest_error = min(d)
         target_idx = d.index(closest_error)
 
