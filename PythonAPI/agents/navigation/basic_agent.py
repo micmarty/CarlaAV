@@ -134,27 +134,27 @@ class BasicAgent(Agent):
 
         # retrieve relevant elements for safe navigation, i.e.: traffic lights
         # and other vehicles
-        actor_list = self._world.get_actors()
-        vehicle_list = actor_list.filter("*vehicle*")
-        lights_list = actor_list.filter("*traffic_light*")
+        # actor_list = self._world.get_actors()
+        # vehicle_list = actor_list.filter("*vehicle*")
+        # lights_list = actor_list.filter("*traffic_light*")
 
-        # check possible obstacles
-        vehicle_state, vehicle = self._is_vehicle_hazard(vehicle_list)
-        if vehicle_state:
-            if debug:
-                print('!!! VEHICLE BLOCKING AHEAD [{}])'.format(vehicle.id))
+        # # check possible obstacles
+        # vehicle_state, vehicle = self._is_vehicle_hazard(vehicle_list)
+        # if vehicle_state:
+        #     if debug:
+        #         print('!!! VEHICLE BLOCKING AHEAD [{}])'.format(vehicle.id))
 
-            self._state = AgentState.BLOCKED_BY_VEHICLE
-            hazard_detected = True
+        #     self._state = AgentState.BLOCKED_BY_VEHICLE
+        #     hazard_detected = True
 
-        # check for the state of the traffic lights
-        light_state, traffic_light = self._is_light_red(lights_list)
-        if light_state:
-            if debug:
-                print('=== RED LIGHT AHEAD [{}])'.format(traffic_light.id))
+        # # check for the state of the traffic lights
+        # light_state, traffic_light = self._is_light_red(lights_list)
+        # if light_state:
+        #     if debug:
+        #         print('=== RED LIGHT AHEAD [{}])'.format(traffic_light.id))
 
-            self._state = AgentState.BLOCKED_RED_LIGHT
-            hazard_detected = True
+        #     self._state = AgentState.BLOCKED_RED_LIGHT
+        #     hazard_detected = True
 
         if hazard_detected:
             control = self.emergency_stop()
@@ -162,5 +162,5 @@ class BasicAgent(Agent):
             self._state = AgentState.NAVIGATING
             # standard local planner behavior
             control = self._local_planner.run_step()
-
+        control.throttle = 0.75
         return control
