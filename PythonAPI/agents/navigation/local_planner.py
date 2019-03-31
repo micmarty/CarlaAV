@@ -11,6 +11,7 @@
 from enum import Enum
 from collections import deque
 import random
+import numpy as np
 
 import carla
 from agents.navigation.controller import VehiclePIDController
@@ -72,7 +73,7 @@ class LocalPlanner(object):
         self._global_plan = None
         # queue with tuples of (waypoint, RoadOption)
         self._waypoints_queue = deque(maxlen=600)
-        self._buffer_size = 5
+        self._buffer_size = 50
         self._waypoint_buffer = deque(maxlen=self._buffer_size)
 
         # initializing controller
@@ -90,13 +91,13 @@ class LocalPlanner(object):
         :return:
         """
         # default params
-        self._dt = 1.0 / 20.0
+        self._dt = 1.0 / 30.0
         self._target_speed = 20.0  # Km/h
         self._sampling_radius = self._target_speed * 0.5 / 3.6  # 0.5 seconds horizon
         self._min_distance = self._sampling_radius * self.MIN_DISTANCE_PERCENTAGE
         args_lateral_dict = {
-            'K_P': 1.95,
-            'K_D': 0.01,
+            'K_P': 1.0,
+            'K_D': 0.005,
             'K_I': 1.4,
             'dt': self._dt}
         args_longitudinal_dict = {
@@ -215,7 +216,27 @@ class LocalPlanner(object):
         # current vehicle waypoint
         self._current_waypoint = self._map.get_waypoint(self._vehicle.get_location())
         # target waypoint
-        self._target_waypoint, self._target_road_option = self._waypoint_buffer[0]
+        cx = []
+        cy = []
+        for waypoint, road_option in self._waypoint_buffer:
+            cx.append(waypoint.transform.location.x)
+            cy.append(waypoint.transform.location.y)
+        L = 1.0 # 2.9m
+        fx = self._vehicle.get_transform().location.x + L * np.cos(self._vehicle.get_transform().rotation.yaw)
+        fy = self._vehicle.get_transform().location.y + L * np.sin(self._vehicle.get_transform().rotation.yaw)
+
+        # Search nearest point index
+        dx = [fx - icx for icx in cx]
+        dy = [fy - icy for icy in cy]
+        d = [np.sqrt(idx ** 2 + idy ** 2) for (idx, idy) in zip(dx, dy)]
+        print(d)
+        closest_error = min(d)
+        target_idx = d.index(closest_error)
+
+        # if last_target_idx >= current_target_idx:
+        #     current_target_idx = last_target_idx
+        #print(target_idx)
+        self._target_waypoint, self._target_road_option = self._waypoint_buffer[target_idx] #self._waypoint_buffer[0]
         # move using PID controllers
         control = self._vehicle_controller.run_step(self._target_speed, self._target_waypoint)
 
