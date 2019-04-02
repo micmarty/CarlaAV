@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+ #!/usr/bin/env python
 
 # Copyright (c) 2018 Intel Labs.
 # authors: German Ros (german.ros@intel.com)
@@ -53,6 +53,30 @@ class Agent(object):
         control.manual_gear_shift = False
 
         return control
+    # from typing import Optional, List
+    # def is_speed_limit_ahead(self, signs: List[carla.Actor]) -> Optional[int]:
+    #     ego_vehicle_location = self._vehicle.get_location()
+    #     ego_vehicle_yaw = self._vehicle.get_transform().rotation.yaw
+    #     sel_limit = None
+    #     for limit in limits_list:
+    #         sign_location = limit.get_location()
+    #         sign_yaw = limit.get_transform().rotation.yaw
+
+    #         magnitude, angle = compute_magnitude_angle(sign_location, ego_vehicle_location, ego_vehicle_yaw)
+
+    #         # Filter out only signs that ego vehicle is front facing
+    #         yaw_diff = sign_yaw - ego_vehicle_yaw
+    #         if magnitude < 30.0 and angle < 30.0 and (-290 < yaw_diff < -250 or 70 < yaw_diff < 110):
+    #             sel_limit = limit
+    #             break
+
+    #     if sel_limit:
+    #         loc = sel_limit.get_location()
+    #         dist, angle = get_distance_ahead(loc, ego_vehicle_location, self._vehicle.get_transform().rotation.yaw)
+    #         speed_limit = int(sel_limit.type_id.split("speed_limit.")[1]
+    #         return True, speed_limit, dist, angle
+
+    #     return False, None, None, None
 
 
     def _is_light_red(self, lights_list):

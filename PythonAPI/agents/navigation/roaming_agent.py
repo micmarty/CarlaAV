@@ -48,6 +48,7 @@ class RoamingAgent(Agent):
         actor_list = self._world.get_actors()
         vehicle_list = actor_list.filter("*vehicle*")
         lights_list = actor_list.filter("*traffic_light*")
+        limits_list = actor_list.filter("*speed_limit*")
 
         # # check possible obstacles
         # vehicle_state, vehicle = self._is_vehicle_hazard(vehicle_list)
@@ -66,6 +67,12 @@ class RoamingAgent(Agent):
             self._state = AgentState.BLOCKED_RED_LIGHT
             # Don't stop on traffic lights
             # hazard_detected = True
+
+        # speed_limit, sign = self._is_speed_limit(limits_list)
+        # if light_state:
+        #     if debug:
+        #         print('=== SPEED SIGN AHEAD [{}])'.format(sign.id))
+            # self._state = AgentState.BLOCKED_RED_LIGHT
 
         if hazard_detected:
             control = self.emergency_stop()
