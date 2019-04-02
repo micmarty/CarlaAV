@@ -73,7 +73,7 @@ class LocalPlanner(object):
         self._global_plan = None
         # queue with tuples of (waypoint, RoadOption)
         self._waypoints_queue = deque(maxlen=600)
-        self._buffer_size = 50
+        self._buffer_size = 10
         self._waypoint_buffer = deque(maxlen=self._buffer_size)
 
         # initializing controller
@@ -212,6 +212,7 @@ class LocalPlanner(object):
         #                 self._waypoints_queue.popleft())
         #         else:
         #             break
+        # Treat buffer as queue, don't let it be empty, fill free space
         while len(self._waypoint_buffer) < self._buffer_size:
             if self._waypoints_queue:
                 self._waypoint_buffer.append(self._waypoints_queue.popleft())
@@ -256,7 +257,8 @@ class LocalPlanner(object):
                 self._waypoint_buffer.popleft()
 
         if debug:
-            draw_waypoints(self._vehicle.get_world(), [self._target_waypoint], self._vehicle.get_location().z + 1.0)
+            draw_waypoints(self._vehicle.get_world(), [self._target_waypoint], self._vehicle.get_location().z + 1.0, color=carla.Color(0, 255, 0))
+            draw_waypoints(self._vehicle.get_world(), [self._waypoint_buffer[-1][0]], self._vehicle.get_location().z + 1.0)
 
         return control
 
