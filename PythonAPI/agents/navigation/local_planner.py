@@ -101,11 +101,11 @@ class LocalPlanner(object):
             'K_I': 0.4,
             'dt': self._dt}
         args_longitudinal_dict = {
-            'K_P': 1.0,
-            'K_D': 0,
-            'K_I': 1,
+            'K_P': 0.2,
+            'K_D': 0.014,
+            'K_I': 0.0258,
             'dt': self._dt}
-
+        
         # parameters overload
         if 'dt' in opt_dict:
             self._dt = opt_dict['dt']
