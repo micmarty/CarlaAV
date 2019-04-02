@@ -147,7 +147,7 @@ class World(object):
 
         while self.vehicle is None:
             spawn_points = self.map.get_spawn_points()
-            spawn_point = spawn_points[1]
+            spawn_point = random.choice(spawn_points)
             self.vehicle = self.world.spawn_actor(blueprint, spawn_point)
 
         # Set up the sensors.
