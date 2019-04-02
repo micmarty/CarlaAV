@@ -118,6 +118,17 @@ class PIDLongitudinalController():
             _de = 0.0
             _ie = 0.0
 
+        # print('PID parameters from FILE!')
+        # import json
+        # try:
+        #     with open('/home/miczi/simulators/094/pid.txt', 'r') as json_file:
+        #         data = json.load(json_file)
+        #         self._K_P = data['P']
+        #         self._K_I = data['I']
+        #         self._K_D = data['D']
+        #         print(self._K_P, self._K_D, self._K_I)
+        # except FileNotFoundError:
+        #     pass
         return np.clip((self._K_P * _e) + (self._K_D * _de / self._dt) + (self._K_I * _ie * self._dt), 0.0, 1.0)
 
 
