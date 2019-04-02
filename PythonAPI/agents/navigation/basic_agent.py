@@ -162,5 +162,5 @@ class BasicAgent(Agent):
             self._state = AgentState.NAVIGATING
             # standard local planner behavior
             control = self._local_planner.run_step()
-        control.throttle = 0.75
+        control.throttle = 0.60
         return control
