@@ -12,10 +12,12 @@ from enum import Enum
 from collections import deque
 import random
 import numpy as np
-
+import matplotlib.pyplot as plt
 import carla
+import math
+from typing import List
 from agents.navigation.controller import VehiclePIDController
-from agents.tools.misc import distance_vehicle, draw_waypoints
+from agents.tools.misc import distance_vehicle, draw_waypoints, compute_magnitude_angle
 
 class RoadOption(Enum):
     """
@@ -93,7 +95,7 @@ class LocalPlanner(object):
         # default params
         self._dt = 1.0 / 5.0
         self._target_speed = 35.0  # Km/h
-        self._sampling_radius = self._target_speed * 0.5 / 3.6  # 0.5 seconds horizon
+        self._sampling_radius = 30 * 0.5 / 3.6 #self._target_speed * 0.5 / 3.6  # 0.5 seconds horizon
         self._min_distance = self._sampling_radius * self.MIN_DISTANCE_PERCENTAGE
         args_lateral_dict = {
             'K_P': .5,
@@ -180,15 +182,18 @@ class LocalPlanner(object):
         self._target_road_option = RoadOption.LANEFOLLOW
         self._global_plan = True
 
+    def get_filled_waypoint_buffer(self) -> List[carla.Waypoint]:
+        while len(self._waypoint_buffer) < self._buffer_size:
+            if self._waypoints_queue:
+                # [0] -> get only carla.Waypoint, ignore RoadOption
+                next_waypoint = self._waypoints_queue.popleft()[0]
+                self._waypoint_buffer.append(next_waypoint)
+            else:
+                break
+        return self._waypoint_buffer
+
+
     def run_step(self, debug=True):
-        """
-        Execute one step of local planning which involves running the longitudinal and lateral PID controllers to
-        follow the waypoints trajectory.
-
-        :param debug: boolean flag to activate waypoints debugging
-        :return:
-        """
-
         # not enough waypoints in the horizon? => add more!
         if len(self._waypoints_queue) < int(self._waypoints_queue.maxlen * 0.5):
             if not self._global_plan:
@@ -201,64 +206,78 @@ class LocalPlanner(object):
             control.brake = 0.0
             control.hand_brake = False
             control.manual_gear_shift = False
-
             return control
 
-        #   Buffering the waypoints
-        # if not self._waypoint_buffer:
-        #     for i in range(self._buffer_size):
-        #         if self._waypoints_queue:
-        #             self._waypoint_buffer.append(
-        #                 self._waypoints_queue.popleft())
-        #         else:
-        #             break
-        # Treat buffer as queue, don't let it be empty, fill free space
-        while len(self._waypoint_buffer) < self._buffer_size:
-            if self._waypoints_queue:
-                self._waypoint_buffer.append(self._waypoints_queue.popleft())
-            else:
-                break
-        # current vehicle waypoint
-        self._current_waypoint = self._map.get_waypoint(self._vehicle.get_location())
-        # target waypoint
-        cx = []
-        cy = []
-        for waypoint, road_option in self._waypoint_buffer:
-            cx.append(waypoint.transform.location.x)
-            cy.append(waypoint.transform.location.y)
+        veh_location = self._vehicle.get_location()  # type: carla.Location
+        veh_waypoint = self._map.get_waypoint(veh_location) # type: carla.Waypoint
+        veh_yaw = self._vehicle.get_transform().rotation.yaw # TODO type: float, range TODO
+        local_plan = self.get_filled_waypoint_buffer() # type: List[carla.Waypoint]
+
+        # Calculate best waypoint to follow considering current yaw
         L = 2.9
-        fx = self._vehicle.get_transform().location.x + L * np.cos(self._vehicle.get_transform().rotation.yaw)
-        fy = self._vehicle.get_transform().location.y + L * np.sin(self._vehicle.get_transform().rotation.yaw)
+        fx = veh_location.x + L * np.cos(veh_yaw)
+        fy = veh_location.y + L * np.sin(veh_yaw)
 
-        # Search nearest point index
-        dx = [fx - icx for icx in cx]
-        dy = [fy - icy for icy in cy]
-        d = [np.sqrt(idx ** 2 + idy ** 2) for (idx, idy) in zip(dx, dy)]
-        closest_error = min(d)
-        target_idx = d.index(closest_error)
+        distances = []
+        for waypoint in local_plan:
+            wp = waypoint.transform.location
+            dx = fx - wp.x
+            dy = fy - wp.y
+            distance = np.sqrt(dx ** 2 + dy ** 2)
+            distances.append(distance)
+        target_idx = np.argmin(distances)
+        closest_error = distances[target_idx]
 
-        # if last_target_idx >= current_target_idx:
-        #     current_target_idx = last_target_idx
-        #print(target_idx)
-        self._target_waypoint, self._target_road_option = self._waypoint_buffer[target_idx] #self._waypoint_buffer[0]
-        # move using PID controllers
-        control = self._vehicle_controller.run_step(self._target_speed, self._target_waypoint)
+        self._target_waypoint = local_plan[target_idx]
+        
+        # Calculate path curvature
+        waypoints_to_look_ahead = 6
+        reference_waypoint = local_plan[target_idx + waypoints_to_look_ahead]
+        ref_location = reference_waypoint.transform.location
+        # delta_x = ref_location.x - veh_location.x
+        # delta_y = ref_location.y - veh_location.y
+        # theta_radians = math.atan2(delta_y, delta_x)
+        # FIXME Sometimes yaw oscilates from 179 to -179 which leads to temporarily bad calculations
+        distance, relative_angle = compute_magnitude_angle(ref_location, veh_location, veh_yaw) #np.rad2deg(theta_radians) - veh_yaw
+        
+        # plt.cla()
+        # plt.plot([self._vehicle.get_transform().location.x, lookahead_waypoint.transform.location.x], [self._vehicle.get_transform().location.y, lookahead_waypoint.transform.location.y], "-r", label="debug")
+        # # plt.plot(, , ".b", label="lookahead")
+        # plt.axis("equal")
+        # plt.legend()
+        # plt.grid(True)
+        # plt.title("Rel angle: {}, yaw {}".format(str(angle), yaw))
+        # plt.pause(0.0001)
+
+        if abs(relative_angle) < 15:
+            target_speed = 50
+        elif abs(relative_angle) < 20:
+            target_speed = 40
+        elif abs(relative_angle) < 30:
+            target_speed = 30
+        else:
+            target_speed = 20
+        print('Relative angle to reference waypoint: {:3d} | Vehicle yaw angle: {:3d} | Target speed {} km/h'.format(
+            int(relative_angle), int(veh_yaw), target_speed            
+        ))
+
+        control = self._vehicle_controller.run_step(target_speed, self._target_waypoint)
 
         # purge the queue of obsolete waypoints
         vehicle_transform = self._vehicle.get_transform()
         max_index = -1
 
-        for i, (waypoint, _) in enumerate(self._waypoint_buffer):
-            if distance_vehicle(
-                    waypoint, vehicle_transform) < self._min_distance:
+        # i, (waypoint, _)
+        for i, waypoint in enumerate(self._waypoint_buffer):
+            if distance_vehicle(waypoint, vehicle_transform) < self._min_distance:
                 max_index = i
         if max_index >= 0:
             for i in range(max_index + 1):
                 self._waypoint_buffer.popleft()
 
         if debug:
-            draw_waypoints(self._vehicle.get_world(), [self._target_waypoint], self._vehicle.get_location().z + 1.0, color=carla.Color(0, 255, 0))
-            draw_waypoints(self._vehicle.get_world(), [self._waypoint_buffer[-1][0]], self._vehicle.get_location().z + 1.0)
+            #draw_waypoints(self._vehicle.get_world(), [self._target_waypoint], self._vehicle.get_location().z + 1.0, color=carla.Color(0, 255, 0))
+            draw_waypoints(self._vehicle.get_world(), [reference_waypoint], veh_location.z + 1.0)
 
         return control
 
