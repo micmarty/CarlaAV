@@ -252,11 +252,15 @@ def main():
             # Save image
             grount_truth_class = get_gt_class(vehicle, traffic_lights, world.debug)
             if args.record:
-                print('[Recording] Class: {} [{}/{}]'.format(grount_truth_class, counter[grount_truth_class], args.images_per_class))
-                counter[grount_truth_class] += 1
                 filepath = '{base}/{name}/{id}.png'.format(base=basepath, name=grount_truth_class, id=image.frame_number)
-                image.save_to_disk(filepath, color_converter=cc.Raw)
 
+                if counter[grount_truth_class] <= args.images_per_class:
+                    print('[Recording] Class: {} [{}/{}]'.format(grount_truth_class, counter[grount_truth_class], args.images_per_class))
+                    image.save_to_disk(filepath, color_converter=cc.Raw)
+                    counter[grount_truth_class] += 1
+                else:
+                    print('[Skipping] Class: {} [{}/{}]'.format(grount_truth_class, counter[grount_truth_class], args.images_per_class))
+                    
                 if can_stop_gathering(counter, args.images_per_class):
                     break
 
