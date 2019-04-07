@@ -84,30 +84,41 @@ def should_quit():
                 return True
     return False
 
-def can_stop_gathering(img_counter, limit) -> bool:
-    enough_green = img_counter.green >= limit
-    enough_red = img_counter.red >= limit
-    enough_yellow = img_counter.yellow >= limit
-    enough_none = img_counter.none >= limit
-    if enough_green and enough_green and enough_yellow and enough_none:
+def can_stop_gathering(counter, limit) -> bool:
+    if counter['green'] >= limit and counter['red'] >= limit and counter['none'] >= limit:
         return True
     return False
+    #return all([val >= limit for val in counter.values()])
 
-def get_gt_class(vehicle, traffic_lights) -> str:
+
+def get_gt_class(vehicle, traffic_lights, debug) -> str:
     min_angle = 180.0
+    best_magnitude = 0.0
+    best_tl = None
+
     veh_transform = vehicle.get_transform()
     for traffic_light in traffic_lights:
         tl_location = traffic_light.get_location()
         magnitude, angle = compute_magnitude_angle(tl_location, veh_transform.location, veh_transform.rotation.yaw)
-        is_above_veh = tl_location.z >= veh_transform.location.z
-        if is_above_veh and magnitude < 80.0 and abs(angle) <= 90.0: #min(25.0, min_angle):
-            if traffic_light.state == carla.libcarla.TrafficLightState.Red:
-                return 'red'
-            elif traffic_light.state == carla.libcarla.TrafficLightState.Green:
-                return 'green'
-            elif traffic_light.state == carla.libcarla.TrafficLightState.Yellow:
-                return 'green'
-    return 'none'
+        is_above_veh = True # tl_location.z >= veh_transform.location.z
+        if is_above_veh and magnitude < 40.0 and angle < min(25.0, min_angle):
+            best_magnitude = magnitude
+            best_tl = traffic_light
+            min_angle = angle
+    
+    if best_tl:
+        print(best_magnitude, min_angle)
+        debug.draw_point(best_tl.get_location() + carla.Location(z=2.0), 0.5, carla.Color(255, 0, 0), 1, False)
+
+
+        if best_tl.state == carla.libcarla.TrafficLightState.Red:
+            return 'red'
+        elif best_tl.state == carla.libcarla.TrafficLightState.Green:
+            return 'green'
+        elif best_tl.state == carla.libcarla.TrafficLightState.Yellow:
+            return 'yellow'
+    else:
+        return 'none'
 
 # TODO Camera pos
 # TODO Lane explorer
@@ -127,12 +138,18 @@ def main():
     basepath = args.output_dir.expanduser()
     basepath.mkdir(parents=True, exist_ok=True)
     classes = ['green', 'red', 'yellow', 'none']
+    counter = {
+        'green': 0,
+        'red': 0,
+        'yellow': 0,
+        'none': 0
+    }
     for classname in classes:
         (basepath / classname).mkdir(parents=True, exist_ok=True)
-    ImgCounter = namedtuple('ImgCounter', field_names=classes)
-    counter = ImgCounter(green=0, red=0, yellow=0, none=0)
+    # ImgCounter = namedtuple('ImgCounter', field_names=classes)
+    # counter = ImgCounter(green=0, red=0, yellow=0, none=0)
 
-    # can_stop_gathering(counter, args.images_per_class)
+    can_stop_gathering(counter, args.images_per_class)
 
 
     actor_list = []
@@ -233,10 +250,15 @@ def main():
             draw_image(display, image)
 
             # Save image
+            grount_truth_class = get_gt_class(vehicle, traffic_lights, world.debug)
             if args.record:
-                grount_truth_class = get_gt_class(vehicle, traffic_lights)
+                print('[Recording] Class: {}'.format(grount_truth_class))
+                counter[grount_truth_class] += 1
                 filepath = '{base}/{name}/{id}.png'.format(base=basepath, name=grount_truth_class, id=image.frame_number)
                 image.save_to_disk(filepath, color_converter=cc.Raw)
+
+                if can_stop_gathering(counter, args.images_per_class):
+                    break
 
             text_surface = font.render('% 5d FPS' % clock.get_fps(), True, (255, 255, 255))
             display.blit(text_surface, (8, 10))
