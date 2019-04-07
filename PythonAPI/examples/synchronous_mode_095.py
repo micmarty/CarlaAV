@@ -108,7 +108,7 @@ def get_gt_class(vehicle, traffic_lights, debug) -> str:
     
     if best_tl:
         print(best_magnitude, min_angle)
-        debug.draw_point(best_tl.get_location() + carla.Location(z=2.0), 0.5, carla.Color(255, 0, 0), 1, False)
+        #debug.draw_point(best_tl.get_location() + carla.Location(z=2.0), 0.5, carla.Color(255, 0, 0), 1, False)
 
 
         if best_tl.state == carla.libcarla.TrafficLightState.Red:
