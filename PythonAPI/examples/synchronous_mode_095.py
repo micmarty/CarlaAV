@@ -189,6 +189,10 @@ def main():
         # Actors
         actors = world.get_actors()
         traffic_lights = actors.filter("*traffic_light*")
+        for tl in traffic_lights:
+            tl.set_yellow_time(0.1)
+            tl.set_red_time(0.1)
+            tl.set_green_time(0.1)
 
         # Make sync queue for sensor data.
         image_queue = queue.Queue()
